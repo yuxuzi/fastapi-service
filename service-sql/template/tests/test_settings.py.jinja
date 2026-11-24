@@ -1,0 +1,51 @@
+"""Settings defaults are safe, and production refuses unsafe values."""
+
+import pytest
+from pydantic import ValidationError
+
+from {{ package_name }}.settings import Settings
+
+
+def test_defaults_are_safe() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.DEBUG is False
+    assert "*" not in settings.ALLOWED_HOSTS
+
+
+def test_database_url_is_a_secret() -> None:
+    settings = Settings(_env_file=None)
+
+    assert "sqlite" in settings.DATABASE_URL.get_secret_value()
+    assert "sqlite" not in repr(settings.DATABASE_URL)
+
+
+def test_production_refuses_wildcard_hosts() -> None:
+    with pytest.raises(ValidationError, match="ALLOWED_HOSTS"):
+        Settings(_env_file=None, ENVIRONMENT="production", ALLOWED_HOSTS=["*"])
+
+
+def test_production_refuses_debug() -> None:
+    with pytest.raises(ValidationError, match="DEBUG"):
+        Settings(
+            _env_file=None,
+            ENVIRONMENT="production",
+            ALLOWED_HOSTS=["api.example.com"],
+            DEBUG=True,
+        )
+
+
+def test_production_accepts_explicit_hosts() -> None:
+    settings = Settings(
+        _env_file=None,
+        ENVIRONMENT="production",
+        ALLOWED_HOSTS=["api.example.com"],
+    )
+
+    assert settings.ALLOWED_HOSTS == ["api.example.com"]
+
+
+def test_environment_variables_override_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("{{ package_name | upper }}_LOG_FORMAT", "text")
+
+    assert Settings(_env_file=None).LOG_FORMAT == "text"

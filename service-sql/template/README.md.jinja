@@ -1,0 +1,98 @@
+# {{ project_name }}
+
+{{ description }}
+
+A layered FastAPI service with liveness and readiness endpoints, JSON logs with request IDs, and one
+example resource stored through SQLAlchemy 2. The default storage is a SQLite file, so it runs
+without any external service.
+
+## Requirements
+
+[uv](https://docs.astral.sh/uv/) is the only tool you need. It installs Python {{ python_version }}+
+and the development tools on demand.
+
+## Run it
+
+```bash
+uv sync                                                # create .venv with the dev group
+uv run uvicorn {{ package_name }}.main:app --reload    # http://127.0.0.1:8000
+```
+
+The first start creates the `examples` table in `./{{ project_name }}.db`. Tables are created at
+startup only; there are no migrations, so a schema change needs a plan of its own.
+
+Open <http://127.0.0.1:8000/docs> for the interactive API documentation.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | The process is up. Never touches dependencies. |
+| `GET /ready` | Every readiness check passes, including the database; 503 otherwise. |
+| `POST /api/v1/examples` | Create an example. |
+| `GET /api/v1/examples` | List examples; `offset` and `limit` query parameters. |
+| `GET /api/v1/examples/{example_id}` | Read one example. |
+| `DELETE /api/v1/examples/{example_id}` | Delete one example. |
+
+## Configuration
+
+Settings are in `{{ package_name }}/settings.py`. Override any of them with an environment variable
+prefixed `{{ package_name | upper }}_`, or copy `.env.example` to `.env` for local values. `.env` is
+git-ignored; never commit it. List values use JSON, for example
+`{{ package_name | upper }}_ALLOWED_HOSTS='["api.example.com"]'`.
+
+In production set `{{ package_name | upper }}_ENVIRONMENT=production`, a real
+`{{ package_name | upper }}_ALLOWED_HOSTS`, and a `{{ package_name | upper }}_DATABASE_URL` of your
+own. Startup fails if `DEBUG` is on or `ALLOWED_HOSTS` contains `*`. It does not refuse the default
+SQLite URL. Requests with any other `Host` header get 400, so an orchestrator's probes must send a
+host name that is in `ALLOWED_HOSTS`.
+
+## Database
+
+The default is `sqlite:///./{{ project_name }}.db`. To use PostgreSQL, install its driver with
+`uv sync --extra postgres`, then set
+`{{ package_name | upper }}_DATABASE_URL=postgresql+psycopg://user:password@host:5432/dbname`
+in the environment. The generated tests use SQLite only; this pack's maintainer has not run the
+service against PostgreSQL, so verify that path in your own environment before relying on it.
+
+## Security
+
+No secrets are needed to run the default configuration. A PostgreSQL URL contains a password, so
+supply it through the environment or a secret store. No authentication is included: add it before
+exposing the service beyond a trusted network.
+
+## Checks
+
+| Task | Command |
+| --- | --- |
+| Tests (SQLite, temporary files) | `uv run pytest` |
+| Lint | `uv run ruff check .` |
+| Format check | `uv run ruff format --check .` |
+| Type check | `uv run mypy {{ package_name }} tests` |
+
+## Docker
+
+```bash
+docker build -t {{ project_name }} .
+docker run --rm -p 8000:8000 -e {{ package_name | upper }}_ALLOWED_HOSTS='["localhost"]' {{ project_name }}
+```
+
+The image stores its SQLite file in `/app/data`, which is not a durable volume unless you mount
+one. The Dockerfile is not built or run by the generated checks; Docker is optional.
+
+## Project layout
+
+```
+{{ package_name }}/
+  main.py          # ASGI entry point
+  app.py           # create_app(): settings, lifespan, middleware, routers, repository
+  settings.py      # typed settings, production checks, DATABASE_URL
+  logs.py          # JSON logging and request IDs
+  domain/          # the example entity, its error, and the repository port
+  application/     # use cases that depend only on the port
+  infrastructure/  # SQLAlchemy repository and models
+  api/             # routers, schemas, dependencies, error mapping
+tests/             # settings, logs, use cases, SQL behaviour, HTTP behaviour
+```
+
+## License
+
+{{ license }}, {{ author }} <{{ email }}>

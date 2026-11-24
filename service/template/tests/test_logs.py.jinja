@@ -1,0 +1,19 @@
+"""JSON log lines carry the request ID and the request fields."""
+
+import json
+import logging
+
+from {{ package_name }}.logs import JsonFormatter
+
+
+def test_json_line_has_request_id_and_request_fields() -> None:
+    record = logging.LogRecord("app", logging.INFO, __file__, 1, "hello %s", ("world",), None)
+    record.__dict__["request_id"] = "abc123"
+    record.__dict__["status"] = 200
+
+    payload = json.loads(JsonFormatter().format(record))
+
+    assert payload["message"] == "hello world"
+    assert payload["level"] == "INFO"
+    assert payload["request_id"] == "abc123"
+    assert payload["status"] == 200

@@ -1,0 +1,86 @@
+# {{ project_name }}
+
+{{ description }}
+
+A layered FastAPI service with liveness and readiness endpoints, JSON logs with request IDs, one
+example resource kept in memory, and tests. It runs without any external service.
+
+## Requirements
+
+[uv](https://docs.astral.sh/uv/) is the only tool you need. It installs Python {{ python_version }}+
+and the development tools on demand.
+
+## Run it
+
+```bash
+uv sync                                                # create .venv with the dev group
+uv run uvicorn {{ package_name }}.main:app --reload    # http://127.0.0.1:8000
+```
+
+Open <http://127.0.0.1:8000/docs> for the interactive API documentation.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | The process is up. Never touches dependencies. |
+| `GET /ready` | Every readiness check passes; 503 otherwise. |
+| `POST /api/v1/examples` | Create an example. |
+| `GET /api/v1/examples` | List examples; `offset` and `limit` query parameters. |
+| `GET /api/v1/examples/{example_id}` | Read one example. |
+| `DELETE /api/v1/examples/{example_id}` | Delete one example. |
+
+Examples live in process memory and are lost when the process stops.
+
+## Configuration
+
+Settings are in `{{ package_name }}/settings.py`. Override any of them with an environment variable
+prefixed `{{ package_name | upper }}_`, or copy `.env.example` to `.env` for local values. `.env` is
+git-ignored; never commit it. List values use JSON, for example
+`{{ package_name | upper }}_ALLOWED_HOSTS='["api.example.com"]'`.
+
+In production set `{{ package_name | upper }}_ENVIRONMENT=production` and a real
+`{{ package_name | upper }}_ALLOWED_HOSTS`. Startup fails if `DEBUG` is on or `ALLOWED_HOSTS`
+contains `*`. Requests with any other `Host` header get 400, so an orchestrator's probes must send
+a host name that is in `ALLOWED_HOSTS`.
+
+## Security
+
+No secrets are needed to run this service. No authentication is included: add it before exposing
+the service beyond a trusted network. The service does not check anything beyond the settings
+described above.
+
+## Checks
+
+| Task | Command |
+| --- | --- |
+| Tests | `uv run pytest` |
+| Lint | `uv run ruff check .` |
+| Format check | `uv run ruff format --check .` |
+| Type check | `uv run mypy {{ package_name }} tests` |
+
+## Docker
+
+```bash
+docker build -t {{ project_name }} .
+docker run --rm -p 8000:8000 -e {{ package_name | upper }}_ALLOWED_HOSTS='["localhost"]' {{ project_name }}
+```
+
+The Dockerfile is not built or run by the generated checks; Docker is optional.
+
+## Project layout
+
+```
+{{ package_name }}/
+  main.py          # ASGI entry point
+  app.py           # create_app(): settings, middleware, routers, repository
+  settings.py      # typed settings and production checks
+  logs.py          # JSON logging and request IDs
+  domain/          # the example entity, its error, and the repository port
+  application/     # use cases that depend only on the port
+  infrastructure/  # in-memory repository
+  api/             # routers, schemas, dependencies, error mapping
+tests/             # settings, logs, use cases, HTTP behaviour
+```
+
+## License
+
+{{ license }}, {{ author }} <{{ email }}>

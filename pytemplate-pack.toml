@@ -1,0 +1,5 @@
+contract = 1
+id = "fastapi-service"
+name = "FastAPI services"
+description = "Layered FastAPI services with health checks, settings, structured logs, and tests, with or without a SQL database."
+version = "1.0.0"

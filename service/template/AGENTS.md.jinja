@@ -1,0 +1,51 @@
+# AGENTS.md
+
+Guidance for coding agents working in `{{ project_name }}`. `CLAUDE.md` imports this file.
+
+## Project
+
+{{ description.rstrip('.') }}. A layered FastAPI service (`{{ package_name }}`) on Python
+{{ python_version }}+, with an in-memory example resource. `uv` is the only required tool: never use
+pip, virtualenv activation, or make.
+
+## Commands
+
+- Install or refresh the environment: `uv sync`
+- Test: `uv run pytest`
+- Lint: `uv run ruff check .`
+- Format: `uv run ruff format .` (check only: `uv run ruff format --check .`)
+- Type-check: `uv run mypy {{ package_name }} tests`
+- Run with reload: `uv run uvicorn {{ package_name }}.main:app --reload`
+- One-off tools without installing them: `uvx <tool>`
+
+## Layout and layering
+
+Imports point inward: `api` -> `application` -> `domain`; `infrastructure` implements the ports in
+`domain/ports.py`; `app.py` wires everything.
+
+- `domain/`: entities, errors, and ports (Protocols). No FastAPI or HTTP imports.
+- `application/`: use cases that depend only on ports.
+- `infrastructure/`: adapters for the ports.
+- `api/`: routers, request and response schemas, dependencies, and error mapping.
+- `app.py`: `create_app()`, the only place that builds adapters.
+
+## Conventions
+
+- Handlers get their services from `api/deps.py`; never construct adapters inside a route.
+- Read configuration only through `Settings`; environment variables use the `{{ package_name | upper }}_` prefix.
+- Raise domain errors from the domain and map them to HTTP in `api/errors.py`.
+- Type-annotate everything; mypy runs in strict mode and must stay clean. Ruff owns formatting and
+  import order. Add dependencies with `uv add` or `uv add --dev`; never edit `uv.lock` by hand.
+
+## Testing
+
+- `tests/test_service.py` and `tests/test_settings.py` need no HTTP; `tests/test_examples_api.py` goes through the app in process.
+- Tests run offline and must not touch the network or real credentials.
+- Before reporting work as done, run the test, lint, format, and type-check commands and report the real results.
+
+## Safety
+
+- Never read, print, or commit `.env` files, secrets, or tokens.
+- Keep `ALLOWED_HOSTS` explicit; never add a wildcard for production.
+- This service has no authentication. Do not expose it beyond a trusted network until one is added.
+- Prefer small, reviewable diffs; explain any change that touches more than one layer.

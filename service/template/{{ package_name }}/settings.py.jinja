@@ -1,0 +1,51 @@
+"""Typed settings, read from prefixed environment variables or an optional `.env` file."""
+
+from functools import lru_cache
+from typing import Literal, Self
+
+from pydantic import model_validator
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+Environment = Literal["development", "test", "production"]
+
+
+class Settings(BaseSettings):
+    """Every runtime setting. Override one with the environment variable `<PREFIX><NAME>`."""
+
+    model_config = SettingsConfigDict(
+        env_prefix="{{ package_name | upper }}_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
+
+    APP_NAME: str = "{{ project_name }}"
+    APP_VERSION: str = "0.1.0"
+    ENVIRONMENT: Environment = "development"
+    DEBUG: bool = False
+
+    # Deny by default: list the host names this service answers to.
+    ALLOWED_HOSTS: list[str] = ["localhost", "127.0.0.1"]
+
+    LOG_LEVEL: str = "INFO"
+    LOG_FORMAT: Literal["json", "text"] = "json"
+
+    @model_validator(mode="after")
+    def _refuse_unsafe_production_values(self) -> Self:
+        """Production must not run in debug mode or accept any host name."""
+        if self.ENVIRONMENT != "production":
+            return self
+        problems: list[str] = []
+        if self.DEBUG:
+            problems.append("DEBUG must be false")
+        if not self.ALLOWED_HOSTS or "*" in self.ALLOWED_HOSTS:
+            problems.append("ALLOWED_HOSTS must list real host names, without '*'")
+        if problems:
+            raise ValueError("Unsafe production settings: " + "; ".join(problems) + ".")
+        return self
+
+
+@lru_cache
+def get_settings() -> Settings:
+    """Return the process-wide settings, read once from the environment."""
+    return Settings()

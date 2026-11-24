@@ -1,0 +1,37 @@
+"""Use cases against the in-memory adapter, without HTTP."""
+
+import pytest
+
+from {{ package_name }}.application.examples import ExampleService
+from {{ package_name }}.domain.examples import ExampleNotFoundError
+from {{ package_name }}.infrastructure.memory import InMemoryExampleRepository
+
+
+def test_created_example_can_be_read() -> None:
+    service = ExampleService(InMemoryExampleRepository())
+
+    created = service.create("alpha", "first")
+
+    assert service.get(created.id) == created
+
+
+def test_missing_example_raises() -> None:
+    service = ExampleService(InMemoryExampleRepository())
+
+    with pytest.raises(ExampleNotFoundError):
+        service.get(1)
+
+
+def test_deleting_a_missing_example_raises() -> None:
+    service = ExampleService(InMemoryExampleRepository())
+
+    with pytest.raises(ExampleNotFoundError):
+        service.delete(1)
+
+
+def test_page_respects_offset_and_limit() -> None:
+    service = ExampleService(InMemoryExampleRepository())
+    for name in ["a", "b", "c"]:
+        service.create(name, "x")
+
+    assert [item.name for item in service.page(offset=1, limit=1)] == ["b"]
