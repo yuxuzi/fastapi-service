@@ -2,4 +2,6 @@ contract = 1
 id = "fastapi-service"
 name = "FastAPI services"
 description = "Layered FastAPI services with health checks, settings, structured logs, and tests, with or without a SQL database."
-version = "1.0.0"
+version = "1.1.0"
+categories = ["web"]
+keywords = ["fastapi", "rest", "api", "http", "service", "sqlalchemy", "database", "uvicorn"]

@@ -41,8 +41,12 @@ service beyond a trusted network. The profile files carry the full `security_pos
 ## Create a project
 
 ```bash
-uvx pytemplate-uv@latest create my-app -p service --template gh:yuxuzi/fastapi-service --template-ref v1.0.0 -y
+uvx pytemplate-uv@latest create my-app -p service -h yuxuzi/fastapi-service@v1.1.0 -y
 ```
+
+`-h` (`--hub`, pytemplate-uv 3.5 or later) reads the commit and digest that
+[pytemplate-hub](https://yuxuzi.github.io/pytemplate-hub/) checked for this tag, and refuses the pack if
+anything changed. For CI or offline use, copy the fully pinned command from the pack's listing there.
 
 Use `-p service-sql` for the SQL profile. The hub's listing page adds `--template-commit` and
 `--template-digest` to pin the exact revision.
